@@ -19,6 +19,11 @@ classifiers = [
 requires-python = ">=3.9"
 dependencies = ["Orange3"]
 
+[project.urls]
+Homepage = "https://github.com/tcorbettclark/orange3-nnviewer"
+Repository = "https://github.com/tcorbettclark/orange3-nnviewer"
+Issues = "https://github.com/tcorbettclark/orange3-nnviewer/issues"
+
 # Orange's canvas reads "orange.widgets" (lowercase) since ~3.36;
 # older versions use "Orange.widgets", so register in both. Add-on
 # listing reuses the widget groups, so no separate entry point is needed.
