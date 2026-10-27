@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orange3-nnviewer"
+version = "0.1.0"
+description = "Orange add-on: view a neural network model with its weights"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["Orange3"]
+
+# Orange's canvas reads "orange.widgets" (lowercase) since ~3.36;
+# older versions use "Orange.widgets", so register in both. Add-on
+# listing reuses the widget groups, so no separate entry point is needed.
+[project.entry-points."orange.widgets"]
+"Neural Networks" = "orangecontrib.nnviewer.widgets"
+
+[project.entry-points."Orange.widgets"]
+"Neural Networks" = "orangecontrib.nnviewer.widgets"
+
+[tool.setuptools.packages.find]
+include = ["orangecontrib*"]
+
+[tool.setuptools.package-data]
+"orangecontrib.nnviewer.widgets" = ["icons/*.svg"]
