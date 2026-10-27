@@ -24,3 +24,6 @@ include = ["orangecontrib*"]
 
 [tool.setuptools.package-data]
 "orangecontrib.nnviewer.widgets" = ["icons/*.svg"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

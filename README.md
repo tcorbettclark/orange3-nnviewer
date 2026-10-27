@@ -58,6 +58,13 @@ Trains an MLP on the bundled housing dataset and opens the widget alone:
 
     python -m orangecontrib.nnviewer.widgets.ow_nn_viewer
 
+## Tests
+
+Run with the Python that runs Orange (Qt renders offscreen, no display
+needed):
+
+    python -m pytest -q
+
 ## Use in a workflow
 
     File  →  Neural Network  →  Neural Network Viewer
