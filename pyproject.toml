@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,15 @@ name = "orange3-nnviewer"
 version = "0.1.0"
 description = "Orange add-on: view a neural network model with its weights"
 readme = "README.md"
+authors = [{ name = "Timothy Corbett-Clark" }]
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["orange3", "orange add-on", "neural network", "visualisation"]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 requires-python = ">=3.9"
 dependencies = ["Orange3"]
 
