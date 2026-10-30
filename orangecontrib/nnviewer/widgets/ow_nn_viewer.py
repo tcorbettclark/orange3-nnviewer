@@ -72,6 +72,16 @@ def _tint(item, color=None):
         item.setBrush(QBrush(QColor(color)))
 
 
+def _fmt(value, spec):
+    """Format a float, rendering NaN/inf explicitly instead of letting
+    the format spec emit them cryptically (e.g. 'nan'/'inf' are fine,
+    but we want the raw value visible, unclamped)."""
+    value = float(value)
+    if not np.isfinite(value):
+        return "nan" if np.isnan(value) else ("+inf" if value > 0 else "-inf")
+    return format(value, spec)
+
+
 class NodeItem(QGraphicsEllipseItem):
     """Accepts hover (keeping it off the edges beneath) and shows its
     tooltip instantly; it has no other hover behaviour."""
@@ -308,7 +318,7 @@ class OWNeuralNetworkViewer(OWWidget):
                 node.setCursor(POINTING_HAND)
                 tooltip = node_name(i, j)
                 if i > 0:
-                    tooltip += f"\nbias = {float(intercepts[i - 1][j]):.4g}"
+                    tooltip += f"\nbias = {_fmt(intercepts[i - 1][j], '.4g')}"
                 node.setToolTip(tooltip)
                 labels = []
                 if i == 0:
@@ -333,7 +343,7 @@ class OWNeuralNetworkViewer(OWWidget):
                 if i > 0 and self.show_labels:
                     labels.append(
                         self._add_text(
-                            f"b={intercepts[i - 1][j]:.2f}",
+                            f"b={_fmt(intercepts[i - 1][j], '.2f')}",
                             x,
                             y + r + 0.35 * r,
                             size=5.5,
@@ -351,13 +361,15 @@ class OWNeuralNetworkViewer(OWWidget):
             for j in range(w.shape[0]):
                 for k in range(w.shape[1]):
                     weight = float(w[j, k])
+                    raw_weight = weight  # kept for the tooltip/label
                     if not np.isfinite(weight):
-                        weight = 0.0
+                        weight = 0.0  # clamp: NaN geometry would corrupt the scene
                     y0, y1 = ys[i][j] * S, ys[i + 1][k] * S
                     color = POS_COLOR if weight >= 0 else NEG_COLOR
                     tooltip = (
                         f"{node_name(i, j)} → {node_name(i + 1, k)}\n"
-                        f"weight = {weight:.4g}"
+                        f"weight = {_fmt(raw_weight, '.4g')}"
+                        + ("" if np.isfinite(raw_weight) else " (drawn as 0)")
                     )
                     edge = EdgeItem(
                         x0,
@@ -381,7 +393,7 @@ class OWNeuralNetworkViewer(OWWidget):
                         mx = x0 + dx * t
                         my = y0 + dy * t
                         edge.number_label = self._add_text(
-                            f"{weight:.2f}",
+                            _fmt(raw_weight, ".2f"),
                             mx,
                             my,
                             size=7,

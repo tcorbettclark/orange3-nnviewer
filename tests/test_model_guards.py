@@ -4,7 +4,7 @@ the placeholder text instead of raising inside the input handler."""
 
 import numpy as np
 
-from orangecontrib.nnviewer.widgets.ow_nn_viewer import EdgeItem
+from orangecontrib.nnviewer.widgets.ow_nn_viewer import EdgeItem, NodeItem
 
 
 class _CoefsOnly:
@@ -27,11 +27,11 @@ class _NoWeights:
 
 
 class _NonFiniteWeights:
-    """Duck-typed MLP whose weights contain NaN and +inf."""
+    """Duck-typed MLP whose weights and biases contain NaN and +inf."""
 
     class skl_model:
         coefs_ = [np.array([[np.nan, 1.0], [np.inf, -1.0]])]  # noqa: RUF012
-        intercepts_ = [np.array([0.0, 0.0])]  # noqa: RUF012
+        intercepts_ = [np.array([np.nan, np.inf])]  # noqa: RUF012
 
     domain = None
 
@@ -82,3 +82,21 @@ def test_non_finite_weights_warn_and_clamp(widget):
     assert len(edges) == 4  # 2 inputs x 2 outputs
     # NaN/inf weights are clamped to zero, so no edge gets NaN geometry.
     assert all(np.isfinite(e.pen().widthF()) for e in edges)
+    # ...but the tooltips and printed labels show the true raw values.
+    tooltips = {e.toolTip() for e in edges}
+    assert any("weight = nan (drawn as 0)" in t for t in tooltips)
+    assert any("weight = +inf (drawn as 0)" in t for t in tooltips)
+    labels = [e.number_label.text() for e in edges if e.number_label]
+    assert "nan" in labels and "+inf" in labels
+    # Biases are not clamped (they are never used as geometry) and are
+    # formatted explicitly, in both the node tooltip and the b= label.
+    nodes = [i for i in widget.scene.items() if isinstance(i, NodeItem)]
+    node_tooltips = "\n".join(n.toolTip() for n in nodes)
+    assert "bias = nan" in node_tooltips
+    assert "bias = +inf" in node_tooltips
+    b_labels = [
+        i.text()
+        for i in widget.scene.items()
+        if type(i).__name__ == "BoxedTextItem" and i.text().startswith("b=")
+    ]
+    assert "b=nan" in b_labels and "b=+inf" in b_labels
