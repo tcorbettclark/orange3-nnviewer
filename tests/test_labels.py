@@ -18,7 +18,7 @@ def test_labels_on_line_staggered(widget, make_model):
         v = label.mapToScene(label.transformOriginPoint()) - p1
         d = p2 - p1
         length = np.hypot(d.x(), d.y())
-        along = (v.x() * d.x() + v.y() * d.y()) / length ** 2
+        along = (v.x() * d.x() + v.y() * d.y()) / length**2
         perp = abs(v.x() * d.y() - v.y() * d.x()) / length
         assert perp < 0.5, "label is off its line"
         assert abs(along - 0.4) < 0.02 or abs(along - 0.6) < 0.02
@@ -26,5 +26,6 @@ def test_labels_on_line_staggered(widget, make_model):
     for fan in fans.values():
         fan.sort()
         positions = [along for _, along in fan]
-        assert all(a != b for a, b in zip(positions, positions[1:])), \
+        assert all(a != b for a, b in zip(positions, positions[1:])), (
             "adjacent fan labels do not alternate"
+        )

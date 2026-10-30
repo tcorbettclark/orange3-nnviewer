@@ -9,9 +9,11 @@ def _edges(widget):
 
 
 def _texts(widget):
-    return [i for i in widget.scene.items()
-            if type(i).__name__ in ("BoxedTextItem",
-                                    "QGraphicsSimpleTextItem")]
+    return [
+        i
+        for i in widget.scene.items()
+        if type(i).__name__ in ("BoxedTextItem", "QGraphicsSimpleTextItem")
+    ]
 
 
 def test_resting_stack(widget, make_model):

@@ -17,8 +17,7 @@ def test_boxes_render_white_over_lines(widget, make_model):
     pixmap.fill(QColor("white"))
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.Antialiasing)
-    widget.scene.render(painter,
-                         QRectF(0, 0, rect.width(), rect.height()), rect)
+    widget.scene.render(painter, QRectF(0, 0, rect.width(), rect.height()), rect)
     painter.end()
 
     for e in edges:
@@ -32,5 +31,6 @@ def test_boxes_render_white_over_lines(widget, make_model):
         x = round(point.x() - rect.left())
         y = round(point.y() - rect.top())
         colour = QColor.fromRgb(pixmap.toImage().pixel(x, y))
-        assert min(colour.red(), colour.green(), colour.blue()) >= 250, \
+        assert min(colour.red(), colour.green(), colour.blue()) >= 250, (
             f"box pixel {colour.name()} is not white"
+        )

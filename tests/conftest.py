@@ -49,8 +49,9 @@ def fire_hover():
             innermost = tb[-1]
             assert innermost.name.startswith("hover"), tb
             assert innermost.line and "super()" in innermost.line, (
-                f"TypeError raised by handler itself, not the super() "
-                f"forward: {exc}")
+                f"TypeError raised by handler itself, not the super() forward: {exc}"
+            )
+
     return fire
 
 
@@ -64,19 +65,18 @@ def make_model():
         if key not in models:
             rs = np.random.RandomState(seed)
             dom = Domain(
-                [ContinuousVariable(f"F{i:02d}")
-                 for i in range(n_features)],
-                ContinuousVariable("Target"))
-            data = Table.from_numpy(dom, rs.rand(150, n_features),
-                                    rs.rand(150, 1))
+                [ContinuousVariable(f"F{i:02d}") for i in range(n_features)],
+                ContinuousVariable("Target"),
+            )
+            data = Table.from_numpy(dom, rs.rand(150, n_features), rs.rand(150, 1))
             # The fixture only needs a model with the right layer shapes,
             # not a converged one; keep the test output clean.
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=ConvergenceWarning)
                 with np.errstate(all="ignore"):
                     models[key] = NNRegressionLearner(
-                        hidden_layer_sizes=hidden,
-                        max_iter=50, random_state=seed)(data)
+                        hidden_layer_sizes=hidden, max_iter=50, random_state=seed
+                    )(data)
         return models[key]
 
     return make
@@ -85,6 +85,7 @@ def make_model():
 @pytest.fixture()
 def widget(qapp):
     from orangecontrib.nnviewer.widgets.ow_nn_viewer import OWNeuralNetworkViewer
+
     w = OWNeuralNetworkViewer()
     w.show()
     yield w

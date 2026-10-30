@@ -42,12 +42,13 @@ def _qt_enum(owner, group, name):
 ROUND_CAP = _qt_enum(Qt, "PenCapStyle", "RoundCap")
 KEEP_ASPECT = _qt_enum(Qt, "AspectRatioMode", "KeepAspectRatio")
 POINTING_HAND = _qt_enum(Qt, "CursorShape", "PointingHandCursor")
+NO_FRAME = _qt_enum(QGraphicsView, "Shape", "NoFrame")
 
 # Edge-number labels are suppressed above this edge count; tooltips
 # still carry every value.
 MAX_LABELED_EDGES = 200
-SCENE_SCALE = 600.0            # data units -> scene pixels
-MARGIN = 20                    # scene padding when fitting/exporting
+SCENE_SCALE = 600.0  # data units -> scene pixels
+MARGIN = 20  # scene padding when fitting/exporting
 POS_COLOR, NEG_COLOR = "#1f77b4", "#d62728"
 
 # Z-order of scene items, bottom to top: edges < text < hovered edge
@@ -58,8 +59,7 @@ Z_EDGE_HOVER = 2.5
 Z_HOVER_TEXT = 2.6
 Z_NODE = 3
 Z_NODE_TEXT = 4
-FILLS = {POS_COLOR: QBrush(QColor(POS_COLOR)),
-         NEG_COLOR: QBrush(QColor(NEG_COLOR))}
+FILLS = {POS_COLOR: QBrush(QColor(POS_COLOR)), NEG_COLOR: QBrush(QColor(NEG_COLOR))}
 EMPTY_BRUSH = QBrush(QColor("white"))
 NODE_PEN = QPen(QColor("#333333"), 1.1)
 
@@ -90,8 +90,7 @@ class BoxedTextItem(QGraphicsSimpleTextItem):
     of edges."""
 
     def paint(self, painter, option, widget=None):
-        painter.fillRect(self.boundingRect().adjusted(-2, -1, 2, 1),
-                         QColor("white"))
+        painter.fillRect(self.boundingRect().adjusted(-2, -1, 2, 1), QColor("white"))
         super().paint(painter, option, widget)
 
 
@@ -111,7 +110,7 @@ class EdgeItem(QGraphicsLineItem):
         self.setToolTip(tooltip)
         self.setCursor(POINTING_HAND)
         self.setZValue(Z_EDGE)
-        self._ends = ends          # ((node, labels), (node, labels))
+        self._ends = ends  # ((node, labels), (node, labels))
         self.number_label = None  # printed weight label, if shown
         self._fill = FILLS[color]
 
@@ -152,7 +151,7 @@ class NNView(QGraphicsView):
         self.setRenderHint(QPainter.Antialiasing)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.setFrameShape(QGraphicsView.NoFrame)
+        self.setFrameShape(NO_FRAME)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -161,8 +160,7 @@ class NNView(QGraphicsView):
     def fit_all(self):
         rect = self.scene().itemsBoundingRect()
         if not rect.isEmpty():
-            self.fitInView(rect.adjusted(-MARGIN, -MARGIN,
-                                        MARGIN, MARGIN), KEEP_ASPECT)
+            self.fitInView(rect.adjusted(-MARGIN, -MARGIN, MARGIN, MARGIN), KEEP_ASPECT)
 
 
 class OWNeuralNetworkViewer(OWWidget):
@@ -182,19 +180,24 @@ class OWNeuralNetworkViewer(OWWidget):
     class Warning(OWWidget.Warning):
         not_a_network = Msg(
             "Connected model does not expose network weights. "
-            "Connect the Model output of a Neural Network widget.")
+            "Connect the Model output of a Neural Network widget."
+        )
         too_many_edges = Msg(
-            "Too many edges ({}) for numbers; "
-            "hover edges for values instead.")
+            "Too many edges ({}) for numbers; hover edges for values instead."
+        )
         save_failed = Msg("Could not write the PNG to {}.")
+        non_finite = Msg(
+            "Model weights contain NaN/inf values; they are drawn as zero-weight edges."
+        )
 
     def __init__(self):
         super().__init__()
         self.model = None
 
         box = gui.widgetBox(self.controlArea, "Display")
-        gui.checkBox(box, self, "show_labels", "Show weight numbers",
-                     callback=self.redraw)
+        gui.checkBox(
+            box, self, "show_labels", "Show weight numbers", callback=self.redraw
+        )
         gui.button(box, self, "Save as PNG", callback=self.save_png)
         gui.rubber(self.controlArea)
 
@@ -226,14 +229,22 @@ class OWNeuralNetworkViewer(OWWidget):
         # A usable MLP exposes one weight matrix and one bias vector per
         # layer; anything else (missing/mismatched attributes) is treated
         # as "not a network" rather than crashing _draw.
-        usable = (coefs is not None and intercepts is not None
-                  and len(coefs) > 0 and len(intercepts) == len(coefs))
+        usable = (
+            coefs is not None
+            and intercepts is not None
+            and len(coefs) > 0
+            and len(intercepts) == len(coefs)
+        )
         if not usable:
             if self.model is not None:
                 self.Warning.not_a_network()
-            self._add_text("Waiting for a neural network model…",
-                           SCENE_SCALE * 0.42, SCENE_SCALE * 0.5,
-                           size=12, color="#888888")
+            self._add_text(
+                "Waiting for a neural network model…",
+                SCENE_SCALE * 0.42,
+                SCENE_SCALE * 0.5,
+                size=12,
+                color="#888888",
+            )
         else:
             self._draw(coefs, intercepts, domain)
 
@@ -248,8 +259,7 @@ class OWNeuralNetworkViewer(OWWidget):
 
         # Positions: one column per layer, nodes spread vertically.
         xs = np.linspace(0.15, 0.85, n_layers)
-        ys = [np.linspace(0.9, 0.1, s) if s > 1 else np.array([0.5])
-              for s in sizes]
+        ys = [np.linspace(0.9, 0.1, s) if s > 1 else np.array([0.5]) for s in sizes]
 
         def node_name(i, j):
             if i == 0:
@@ -258,7 +268,17 @@ class OWNeuralNetworkViewer(OWWidget):
                 return out_labels[j]
             return f"h{i}.{j + 1}"
 
-        max_abs = max(float(np.abs(w).max()) for w in coefs) or 1.0
+        # A non-converged MLP can leave NaN/inf in its weight matrices.
+        # Scale by the largest finite |weight| and flag the model; each
+        # non-finite weight is clamped to zero below so the diagram is
+        # never drawn with NaN geometry.
+        finite_layers = [w[np.isfinite(w)] for w in coefs]
+        if any(w.size != f.size for w, f in zip(coefs, finite_layers)):
+            self.Warning.non_finite()
+        finite = np.concatenate(finite_layers)
+        max_abs = float(np.abs(finite).max()) if finite.size else 0.0
+        if max_abs <= 0:
+            max_abs = 1.0
         n_edges = sum(w.size for w in coefs)
         show_numbers = self.show_labels and n_edges <= MAX_LABELED_EDGES
         if self.show_labels and n_edges > MAX_LABELED_EDGES:
@@ -292,25 +312,35 @@ class OWNeuralNetworkViewer(OWWidget):
                 node.setToolTip(tooltip)
                 labels = []
                 if i == 0:
-                    labels.append(self._add_text(
-                        in_labels[j], x - r - 0.012 * S, y, size=8,
-                        align="right"))
+                    labels.append(
+                        self._add_text(
+                            in_labels[j], x - r - 0.012 * S, y, size=8, align="right"
+                        )
+                    )
                 elif i == n_layers - 1:
-                    labels.append(self._add_text(
-                        out_labels[j], x + r + 0.012 * S, y, size=8,
-                        align="left"))
+                    labels.append(
+                        self._add_text(
+                            out_labels[j], x + r + 0.012 * S, y, size=8, align="left"
+                        )
+                    )
                 else:
                     # Number hidden neurons, but only if the circle is
                     # large enough to fit the text.
                     if r >= 0.03 * S:
-                        labels.append(self._add_text(str(j + 1), x, y,
-                                                       size=6,
-                                                       z=Z_NODE_TEXT))
+                        labels.append(
+                            self._add_text(str(j + 1), x, y, size=6, z=Z_NODE_TEXT)
+                        )
                 if i > 0 and self.show_labels:
-                    labels.append(self._add_text(
-                        f"b={intercepts[i - 1][j]:.2f}",
-                        x, y + r + 0.35 * r, size=5.5, color="#777777",
-                        boxed=True))
+                    labels.append(
+                        self._add_text(
+                            f"b={intercepts[i - 1][j]:.2f}",
+                            x,
+                            y + r + 0.35 * r,
+                            size=5.5,
+                            color="#777777",
+                            boxed=True,
+                        )
+                    )
                 node_label_items[(i, j)] = labels
                 row.append(node)
             node_items.append(row)
@@ -321,17 +351,27 @@ class OWNeuralNetworkViewer(OWWidget):
             for j in range(w.shape[0]):
                 for k in range(w.shape[1]):
                     weight = float(w[j, k])
+                    if not np.isfinite(weight):
+                        weight = 0.0
                     y0, y1 = ys[i][j] * S, ys[i + 1][k] * S
                     color = POS_COLOR if weight >= 0 else NEG_COLOR
-                    tooltip = (f"{node_name(i, j)} → {node_name(i + 1, k)}\n"
-                               f"weight = {weight:.4g}")
+                    tooltip = (
+                        f"{node_name(i, j)} → {node_name(i + 1, k)}\n"
+                        f"weight = {weight:.4g}"
+                    )
                     edge = EdgeItem(
-                        x0, y0, x1, y1,
+                        x0,
+                        y0,
+                        x1,
+                        y1,
                         1.0 + 4.0 * abs(weight) / max_abs,
-                        color, tooltip,
-                        ends=((node_items[i][j], node_label_items[(i, j)]),
-                              (node_items[i + 1][k],
-                               node_label_items[(i + 1, k)])))
+                        color,
+                        tooltip,
+                        ends=(
+                            (node_items[i][j], node_label_items[(i, j)]),
+                            (node_items[i + 1][k], node_label_items[(i + 1, k)]),
+                        ),
+                    )
                     scene.addItem(edge)
                     if show_numbers:
                         dx, dy = x1 - x0, y1 - y0
@@ -341,12 +381,28 @@ class OWNeuralNetworkViewer(OWWidget):
                         mx = x0 + dx * t
                         my = y0 + dy * t
                         edge.number_label = self._add_text(
-                            f"{weight:.2f}", mx, my, size=7, color=color,
-                            align="center", boxed=True,
-                            rotation=np.degrees(np.arctan2(dy, dx)))
+                            f"{weight:.2f}",
+                            mx,
+                            my,
+                            size=7,
+                            color=color,
+                            align="center",
+                            boxed=True,
+                            rotation=np.degrees(np.arctan2(dy, dx)),
+                        )
 
-    def _add_text(self, text, x, y, size=8, color="#333333",
-                  align="center", rotation=None, boxed=False, z=Z_TEXT):
+    def _add_text(
+        self,
+        text,
+        x,
+        y,
+        size=8,
+        color="#333333",
+        align="center",
+        rotation=None,
+        boxed=False,
+        z=Z_TEXT,
+    ):
         item = BoxedTextItem(text) if boxed else QGraphicsSimpleTextItem(text)
         item.setZValue(z)
         font = QFont()
@@ -355,8 +411,7 @@ class OWNeuralNetworkViewer(OWWidget):
         item.setBrush(QBrush(QColor(color)))
         item._base_color = QColor(color)
         rect = item.boundingRect()
-        dx = {"center": rect.width() / 2, "right": rect.width(),
-              "left": 0}[align]
+        dx = {"center": rect.width() / 2, "right": rect.width(), "left": 0}[align]
         item.setPos(x - dx, y - rect.height() / 2)
         if rotation is not None:
             # Rotate about the text's centre, which stays at (x, y).
@@ -370,12 +425,12 @@ class OWNeuralNetworkViewer(OWWidget):
 
     def save_png(self):
         self.Warning.save_failed.clear()
-        rect = self.scene.itemsBoundingRect().adjusted(-MARGIN, -MARGIN,
-                                                       MARGIN, MARGIN)
+        rect = self.scene.itemsBoundingRect().adjusted(-MARGIN, -MARGIN, MARGIN, MARGIN)
         if rect.isEmpty():
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save network as PNG", "neural_network.png", "PNG (*.png)")
+            self, "Save network as PNG", "neural_network.png", "PNG (*.png)"
+        )
         if not path:
             return
         scale = 2  # render at 2x for crisp output
@@ -385,9 +440,8 @@ class OWNeuralNetworkViewer(OWWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         try:
             self.scene.render(
-                painter,
-                QRectF(0, 0, rect.width() * scale, rect.height() * scale),
-                rect)
+                painter, QRectF(0, 0, rect.width() * scale, rect.height() * scale), rect
+            )
         finally:
             painter.end()
         if not pixmap.save(path):
@@ -401,8 +455,11 @@ class OWNeuralNetworkViewer(OWWidget):
             in_labels = [v.name for v in domain.attributes]
             class_var = domain.class_var
             if class_var is not None:
-                out_labels = (list(class_var.values) if class_var.is_discrete
-                              else [class_var.name])
+                out_labels = (
+                    list(class_var.values)
+                    if class_var.is_discrete
+                    else [class_var.name]
+                )
         in_labels += [f"x{j}" for j in range(len(in_labels), n_in)]
         out_labels += [f"y{j}" for j in range(len(out_labels), n_out)]
         return in_labels[:n_in], out_labels[:n_out]

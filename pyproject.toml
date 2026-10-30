@@ -39,5 +39,12 @@ include = ["orangecontrib*"]
 [tool.setuptools.package-data]
 "orangecontrib.nnviewer.widgets" = ["icons/*.svg"]
 
+# Ruff is used with its defaults (88-column formatter, default lint rule
+# set). Pin the target version so behaviour is independent of the Python
+# running the tool.
+[tool.ruff]
+target-version = "py39"
+line-length = 88
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

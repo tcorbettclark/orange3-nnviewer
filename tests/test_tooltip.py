@@ -28,9 +28,11 @@ def test_edge_tooltip_is_instant(widget, make_model, fire_hover):
 
 def test_labels_are_inert(widget, make_model):
     widget.set_model(make_model(6, (2,)))
-    labels = [i for i in widget.scene.items()
-              if type(i).__name__ in ("BoxedTextItem",
-                                      "QGraphicsSimpleTextItem")]
+    labels = [
+        i
+        for i in widget.scene.items()
+        if type(i).__name__ in ("BoxedTextItem", "QGraphicsSimpleTextItem")
+    ]
     assert all(not l.toolTip() for l in labels)
     assert all(not l.acceptHoverEvents() for l in labels)
     assert all(not l.hasCursor() for l in labels)
