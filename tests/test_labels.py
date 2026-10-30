@@ -4,8 +4,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from orangecontrib.nnviewer.widgets.ow_nn_viewer import (
-    BoxedTextItem, EdgeItem)
+from orangecontrib.nnviewer.widgets.ow_nn_viewer import BoxedTextItem, EdgeItem
 
 
 def test_labels_on_line_staggered(widget, make_model):

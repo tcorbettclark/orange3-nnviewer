@@ -13,18 +13,21 @@ The diagram always scales to fit the window.
 """
 
 import numpy as np
-
-from AnyQt.QtCore import Qt, QLineF, QRectF
+from AnyQt.QtCore import QLineF, QRectF, Qt
 from AnyQt.QtGui import QBrush, QColor, QFont, QPainter, QPen, QPixmap
-from AnyQt.QtWidgets import (QFileDialog, QGraphicsEllipseItem,
-                             QGraphicsLineItem, QGraphicsScene,
-                             QGraphicsSimpleTextItem, QGraphicsView,
-                             QToolTip)
-
+from AnyQt.QtWidgets import (
+    QFileDialog,
+    QGraphicsEllipseItem,
+    QGraphicsLineItem,
+    QGraphicsScene,
+    QGraphicsSimpleTextItem,
+    QGraphicsView,
+    QToolTip,
+)
 from Orange.base import Model
 from Orange.widgets import gui
 from Orange.widgets.settings import Setting
-from Orange.widgets.widget import OWWidget, Input, Msg
+from Orange.widgets.widget import Input, Msg, OWWidget
 
 
 def _qt_enum(owner, group, name):
@@ -161,20 +164,16 @@ class NNView(QGraphicsView):
             self.fitInView(rect.adjusted(-MARGIN, -MARGIN,
                                         MARGIN, MARGIN), KEEP_ASPECT)
 
-    def fit_all(self):
-        rect = self.scene().itemsBoundingRect()
-        if not rect.isEmpty():
-            self.fitInView(rect.adjusted(-MARGIN, -MARGIN,
-                                        MARGIN, MARGIN), KEEP_ASPECT)
-
 
 class OWNeuralNetworkViewer(OWWidget):
     name = "NN Viewer"
     description = "Displays a trained neural network with weights on edges."
     icon = "icons/nnviewer.svg"
     priority = 10
-    keywords = ["neural network", "mlp", "weights", "visualisation"]
+    keywords = ["neural network", "mlp", "weights", "visualisation"]  # noqa: RUF012
 
+    # Class-level Setting is the canonical Orange pattern (settings are
+    # stored on the class and per-instance at runtime).
     show_labels = Setting(True)
 
     class Inputs:
@@ -187,6 +186,7 @@ class OWNeuralNetworkViewer(OWWidget):
         too_many_edges = Msg(
             "Too many edges ({}) for numbers; "
             "hover edges for values instead.")
+        save_failed = Msg("Could not write the PNG to {}.")
 
     def __init__(self):
         super().__init__()
@@ -223,7 +223,12 @@ class OWNeuralNetworkViewer(OWWidget):
                 intercepts = getattr(skl, "intercepts_", None)
                 domain = getattr(self.model, "domain", None)
 
-        if coefs is None:
+        # A usable MLP exposes one weight matrix and one bias vector per
+        # layer; anything else (missing/mismatched attributes) is treated
+        # as "not a network" rather than crashing _draw.
+        usable = (coefs is not None and intercepts is not None
+                  and len(coefs) > 0 and len(intercepts) == len(coefs))
+        if not usable:
             if self.model is not None:
                 self.Warning.not_a_network()
             self._add_text("Waiting for a neural network model…",
@@ -364,6 +369,7 @@ class OWNeuralNetworkViewer(OWWidget):
     # Export
 
     def save_png(self):
+        self.Warning.save_failed.clear()
         rect = self.scene.itemsBoundingRect().adjusted(-MARGIN, -MARGIN,
                                                        MARGIN, MARGIN)
         if rect.isEmpty():
@@ -377,12 +383,15 @@ class OWNeuralNetworkViewer(OWWidget):
         pixmap.fill(QColor("white"))
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.Antialiasing)
-        self.scene.render(
-            painter,
-            QRectF(0, 0, rect.width() * scale, rect.height() * scale),
-            rect)
-        painter.end()
-        pixmap.save(path)
+        try:
+            self.scene.render(
+                painter,
+                QRectF(0, 0, rect.width() * scale, rect.height() * scale),
+                rect)
+        finally:
+            painter.end()
+        if not pixmap.save(path):
+            self.Warning.save_failed(path)
 
     @staticmethod
     def _layer_labels(domain, sizes):

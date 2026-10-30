@@ -20,6 +20,7 @@ def test_hover_fills_nodes_and_tints_labels(widget, make_model, fire_hover):
     assert node.brush().color().name() == edge_colour
     for label, was in zip(labels, base_colours):
         assert label.brush().color().name() == edge_colour
+        # Hover must tint but never restyle the text itself.
         assert not label.font().bold()
     assert edge.number_label.brush().color().name() == edge_colour
 
